@@ -61,14 +61,14 @@
             // Get options width
             let width = $slider.getAttribute('data-width') || '100%';
             this.width = this.ConvertPercent(width, this.$viewport);
-            // Add Class 'actived' cho Slide dau tien luc ban dau
-            let idCur = parseFloat($slider.getAttribute('data-idBegin'), 10) || 0;
-            this.goto(idCur, false, true);
             // Mang chua vi tri cac Slides
             this.xMap = [];
             for (let i = 0; i < this.num; i++) {
                 this.xMap.push(-i * this.width);
             }
+            // Add Class 'actived' cho Slide dau tien luc ban dau
+            let idCur = parseFloat($slider.getAttribute('data-idBegin'), 10) || 0;
+            this.goto(idCur, false, true);
             // Dat vi tri cua cac Slides luc ban dau
             this.PositionSlidesAtBegin();
             // Add Event Tap
@@ -173,7 +173,6 @@
                 || clearTimeout;
             // Variable at begin
             let that = this, duration = that.duration, tBegin = +new Date(), tEnd = tBegin + duration, xCanvasLast = that.xCanvasLast, xChange = that.xCanvas - xCanvasLast;
-            console.log(that.xCanvasLast, that.xCanvas);
             // Loop Step function
             cancelAnimationFrame(that.request);
             let Step = function () {
@@ -186,7 +185,7 @@
                 that.SetPostion(that.$canvas, xCur);
                 // Cap nhat vi tri xCanvas
                 // that.xCanvasLast = that.xCanvas;
-                // that.xCanvas = xCur;
+                that.xCanvas = xCur;
                 // Loop action  
                 that.request = requestAnimationFrame(Step);
                 // End Loop
@@ -197,15 +196,18 @@
             Step();
         }
         GotoNearSlide() {
-            let width = this.width, idCur = this.idCur, xBuffer = this.pageX0 - this.pageX1, xCanvasLast = this.xCanvas - xBuffer, isNext = xBuffer >= 0 ? true : false;
+            let width = this.width, idCur = this.idCur, xNear = this.pageX0 - this.pageX1, xCanvasLast = this.xCanvas - xNear, isNext = xNear >= 0 ? true : false;
             // Di chuyen sang Next Slide
-            if ((idCur < this.num - 1) && (xBuffer > 0) && (xBuffer >= width / 2)) {
-                this.goto(idCur + 1, true, true, xCanvasLast);
+            if ((idCur < this.num - 1) && (xNear > 0) && (xNear >= width / 2)) {
+                console.log('#1 next slide');
+                this.goto(idCur + 1, true, true);
             }
-            else if ((idCur > 0) && (xBuffer < 0) && (xBuffer <= -width / 2)) {
-                this.goto(idCur - 1, true, true, xCanvasLast);
+            else if ((idCur > 0) && (xNear < 0) && (xNear <= -width / 2)) {
+                console.log('#2 prev slide');
+                this.goto(idCur - 1, true, true);
             }
             else {
+                console.log('#3 phuc hoi');
                 this.goto(idCur, true, true, xCanvasLast);
             }
         }
@@ -250,6 +252,7 @@
             that.$viewport.addEventListener('mousedown', function (e) {
                 var i = that.GetEventRight(e);
                 that.pageX0 = i.pageX;
+                that.xMoveLast = null;
                 // Event Mouse Move`
                 document.addEventListener('mousemove', MouseMove);
                 // Event Mouse End`
@@ -257,17 +260,29 @@
             });
             // Function MouseMove
             function MouseMove(e) {
-                let i = that.GetEventRight(e), pageX = i.pageX, xCanvasNext = that.xCanvas - that.width, xCanvasPrev = that.xCanvas + that.width, xCanvasCur = that.xCanvas + (pageX - that.pageX0);
-                that.SetPostion(that.$canvas, xCanvasCur);
+                let i = that.GetEventRight(e);
+                that.xMoveLast = that.xMoveLast !== null ? that.xMoveLast : that.pageX0;
+                let distance = i.pageX - that.xMoveLast;
+                that.xMoveLast = i.pageX;
+                // console.log(distance, that.xMoveLast);
+                // Setup di chuyen giam dan o dau va cuoi Slide
+                if ((that.idCur == 0 && distance > 0)
+                    || (that.idCur == that.num - 1 && distance < that.xMap[that.num - 1])) {
+                    distance = distance / 4;
+                }
+                // // console.log(distance);
+                that.xCanvas += distance;
+                that.SetPostion(that.$canvas, that.xCanvas);
+                console.log(that.xCanvas);
                 // Kiem tra di chuyen sang vi tri Slide ke ben
-                if (xCanvasCur <= xCanvasNext) {
-                    that.goto(that.idCur + 1, false);
-                    that.pageX0 = pageX;
-                }
-                else if (xCanvasPrev <= xCanvasCur) {
-                    that.goto(that.idCur - 1, false);
-                    that.pageX0 = pageX;
-                }
+                // if( xCanvasCur <= xCanvasNext ) {
+                //   that.goto(that.idCur + 1, false);
+                //   that.pageX0 = pageX;
+                // }
+                // else if( xCanvasPrev <= xCanvasCur ) {
+                //   that.goto(that.idCur - 1, false);
+                //   that.pageX0 = pageX;
+                // }
             }
             // Function MouseUp
             function MouseUp(e) {
@@ -282,7 +297,6 @@
         }
         // Action goto Slide
         goto(idNext, isAnimate, isForceActive, xCanvasLast) {
-            console.log(idNext);
             let actived = this.actived, 
             // Lenh if ho tro. setup actived Slide voi ID !== 0
             idCur = this.idCur !== undefined ? this.idCur : 0, nSlide = idNext - idCur;
@@ -293,12 +307,13 @@
             this.RemoveClass(this.$slides, actived);
             this.RemoveClass(this.$pagItems, actived);
             // Add Class 'actived' in Slide Next
-            console.log(idNext);
             this.AddClass(this.$slides[idNext], actived);
             this.AddClass(this.$pagItems[idNext], actived);
             // Cap nhat vi tri cua Canvas
-            this.xCanvasLast = xCanvasLast !== undefined ? xCanvasLast : this.xCanvas;
-            this.xCanvas -= this.width * nSlide;
+            console.log('#4', this.xCanvasLast, this.xCanvas);
+            this.xCanvasLast = this.xCanvas;
+            this.xCanvas = this.xMap[idNext];
+            console.log('#5', this.xCanvasLast, this.xCanvas);
             if (isAnimate) {
                 this.AnimateCanvas();
             }
