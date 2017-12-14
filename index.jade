@@ -1,0 +1,40 @@
+doctype html
+html(lang="en")
+  head
+    title Test Slider-JS
+    link(rel="stylesheet", href="css/bootstrap-reboot.css")
+    link(rel="stylesheet", href="css/bootstrap-grid.css")
+    link(rel="stylesheet", href="css/slider-js.css")
+
+  body
+    .container
+      .row
+        .col
+          h1 TEST SLIDER-JS
+          
+          div.sliderjs(data-width="1000", data-idBegin="0")
+            .sliderjs-viewport
+              ul.sliderjs-canvas
+                li
+                  img(src="img/img_slider_01.jpg", alt="Image Slider 1")
+                li
+                  img(src="img/img_slider_02.jpg", alt="Image Slider 2")
+                li
+                  img(src="img/img_slider_03.jpg", alt="Image Slider 3")
+                li
+                  img(src="img/img_slider_04.jpg", alt="Image Slider 4")
+                li
+                  img(src="img/img_slider_05.jpg", alt="Image Slider 5")
+
+            ul.sliderjs-pag
+              li slide 1
+              li slide 2
+              li slide 3
+              li slide 4
+              li slide 5
+
+            ul.sliderjs-nav
+              li.sliderjs-prev Previous
+              li.sliderjs-next Next
+
+    script(src="js/slider-js.js")

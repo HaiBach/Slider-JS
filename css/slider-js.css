@@ -1,0 +1,37 @@
+.sliderjs-viewport {
+  position: relative;
+  -webkit-box-sizing: content-box;
+  box-sizing: content-box;
+}
+
+.sliderjs-canvas {
+  margin: 0;
+  padding: 0;
+  -webkit-box-sizing: content-box;
+  box-sizing: content-box;
+}
+
+.sliderjs-canvas > li {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  -webkit-box-sizing: content-box;
+  box-sizing: content-box;
+}
+
+.sliderjs-canvas > li.sliderjs-actived {
+  position: static;
+}
+
+.sliderjs-nav .sliderjs-prev, .sliderjs-nav .sliderjs-next {
+  cursor: pointer;
+}
+
+.sliderjs-pag > li {
+  cursor: pointer;
+}
+
+.sliderjs-pag > li.sliderjs-actived {
+  background-color: red;
+}

@@ -1,0 +1,42 @@
+// STYLE FOR SLIDER JS
+@mixin box-sizing {
+  -webkit-box-sizing: content-box;
+          box-sizing: content-box;
+}
+
+
+// Style for Viewport
+.sliderjs-viewport {
+  // overflow: hidden;
+  position: relative;
+  @include box-sizing;
+}
+.sliderjs-canvas {
+  margin: 0;
+  padding: 0;
+  @include box-sizing;
+  > li {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: block;
+    @include box-sizing;
+
+    &.sliderjs-actived {
+      position: static;
+    }
+  }
+}
+.sliderjs-nav {
+  .sliderjs-prev, .sliderjs-next {
+    cursor: pointer;
+  }
+}
+.sliderjs-pag {
+  > li {
+    cursor: pointer;
+    &.sliderjs-actived {
+      background-color: red;
+    }
+  }
+}
