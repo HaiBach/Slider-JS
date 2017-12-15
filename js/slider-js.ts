@@ -306,7 +306,8 @@
 
         var i = that.GetEventRight(e);
         that.pageX0 = i.pageX;
-        that.xMoveLast = null;
+        that.pageXLast = null;
+        that.tBegin = +new Date();
 
         // Event Mouse Move`
         document.addEventListener('mousemove', MouseMove);
@@ -317,40 +318,40 @@
       // Function MouseMove
       function MouseMove(e) {
         let i = that.GetEventRight(e);
-        that.xMoveLast = that.xMoveLast !== null ? that.xMoveLast : that.pageX0;
+        that.pageXLast = that.pageXLast !== null ? that.pageXLast : that.pageX0;
 
-        let distance = i.pageX - that.xMoveLast;
-        that.xMoveLast = i.pageX;
-        // console.log(distance, that.xMoveLast);
+        let distance = i.pageX - that.pageXLast;
+        that.pageXLast = i.pageX;
 
         // Setup di chuyen giam dan o dau va cuoi Slide
         if(  (that.idCur == 0 && distance > 0)
-          || (that.idCur == that.num-1 && distance < that.xMap[that.num-1]) )
+          || (that.idCur == that.num-1 && distance < 0) )
         {
-          distance = distance / 4;
+          distance /= 4;
         }
         // // console.log(distance);
         that.xCanvas += distance;
         that.SetPostion(that.$canvas, that.xCanvas);
-        console.log(that.xCanvas);
+        // console.log(that.xCanvas);
 
 
 
         // Kiem tra di chuyen sang vi tri Slide ke ben
-        // if( xCanvasCur <= xCanvasNext ) {
-        //   that.goto(that.idCur + 1, false);
-        //   that.pageX0 = pageX;
-        // }
-        // else if( xCanvasPrev <= xCanvasCur ) {
-        //   that.goto(that.idCur - 1, false);
-        //   that.pageX0 = pageX;
-        // }
+        if( (that.xCanvas <= that.xMap[that.idCur + 1]) && (that.idCur < that.num-1) ) {
+          that.goto(that.idCur + 1, false);
+          that.pageX0 = i.pageX;
+        }
+        else if( (that.xCanvas >= that.xMap[that.idCur - 1]) && (that.idCur > 0) ) {
+          that.goto(that.idCur - 1, false);
+          that.pageX0 = i.pageX;
+        }
       }
 
       // Function MouseUp
       function MouseUp(e) {
         let i = that.GetEventRight(e);
         that.pageX1 = i.pageX;
+        that.tEnd = +new Date();
 
         // Thuc hien pageX1 - Di chuyen toi Slide ke ben
         that.GotoNearSlide();
@@ -371,7 +372,7 @@
 
 
     // Action goto Slide
-    public goto(idNext, isAnimate, isForceActive, xCanvasLast) {
+    public goto(idNext, isAnimate, isForceActive) {
 
       let actived = this.actived,
           // Lenh if ho tro. setup actived Slide voi ID !== 0
@@ -389,10 +390,10 @@
       this.AddClass(this.$pagItems[idNext], actived);
 
       // Cap nhat vi tri cua Canvas
-      console.log('#4', this.xCanvasLast, this.xCanvas);
+      // console.log('#4', this.xCanvasLast, this.xCanvas);
       this.xCanvasLast = this.xCanvas;
       this.xCanvas = this.xMap[idNext];
-      console.log('#5', this.xCanvasLast, this.xCanvas);
+      // console.log('#5', this.xCanvasLast, this.xCanvas);
 
       if( isAnimate ) {
         this.AnimateCanvas();
