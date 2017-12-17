@@ -2,6 +2,7 @@ doctype html
 html(lang="en")
   head
     title Test Slider-JS
+    meta(name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no")
     link(rel="stylesheet", href="css/bootstrap-reboot.css")
     link(rel="stylesheet", href="css/bootstrap-grid.css")
     link(rel="stylesheet", href="css/slider-js.css")
@@ -11,8 +12,12 @@ html(lang="en")
       .row
         .col
           h1 TEST SLIDER-JS
+          - var n = 0;
+          while n < 4
+            - n++;
+            p Lorem ipsum dolor sit amet, consectetur adipisicing elit. Neque magnam perferendis minima magni porro ratione pariatur quam id, odio quidem, nam non architecto laboriosam. Ab optio corporis quas saepe delectus.
           
-          div.sliderjs(data-width="690", data-idBegin="0" data-duration="1000")
+          div.sliderjs(data-width="690", data-idBegin="0" data-duration="400")
             .sliderjs-viewport
               ul.sliderjs-canvas
                 li
@@ -36,5 +41,10 @@ html(lang="en")
             ul.sliderjs-nav
               li.sliderjs-prev Previous
               li.sliderjs-next Next
+
+          - var n = 0;
+          while n < 4
+            - n++;
+            p Lorem ipsum dolor sit amet, consectetur adipisicing elit. Neque magnam perferendis minima magni porro ratione pariatur quam id, odio quidem, nam non architecto laboriosam. Ab optio corporis quas saepe delectus.
 
     script(src="js/slider-js.js")

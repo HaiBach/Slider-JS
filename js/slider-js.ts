@@ -33,7 +33,7 @@
       this.$next = $slider.querySelector('.sliderjs-next') || document.createElement('div');
       this.actived = 'sliderjs-actived';
       this.xCanvas = this.xCanvasLast = 0;
-      
+      this.isAnimate = false;
       this.duration = $slider.getAttribute('data-duration') || 400;
 
       // Dieu kien tiep tuc thuc hien
@@ -59,6 +59,23 @@
       for( let i = 0; i < this.num; i++ ) {
         this.xMap.push(- i * this.width);
       }
+
+      // Request Animation Frame shortcut
+      this.requestAF = window.requestAnimationFrame.bind(window)
+                    || function(callback) { return window.setTimeout(callback, 1000/60).bind(window) };
+      this.cancelAF = window.cancelAnimationFrame.bind(window) || window.clearTimeout.bind(window);
+
+      // Ten event touch tuy theo browser ho tro
+      let isPointer = !!window.PointerEvent,
+          isMSPointer = !!window.MSPointerEvent,
+          isTouch = !!window.TouchEvent
+                  || 'ontouchstart' in window
+                  || (window.DocumentTouch && document instanceof DocumentTouch);
+      
+      if( isTouch )          this.evTouch = { start: 'touchstart', move: 'touchmove', end: 'touchend' };
+      else if( isPointer )   this.evTouch = { start: 'pointerstart', move: 'pointermove', end: 'pointerend' };
+      else if( isMSPointer ) this.evTouch = { start: 'mspointerstart', move: 'mspointermove', end: 'mspointerend' };
+      else                   this.evTouch = { start: '', move: '', end: '' };
 
       // Add Class 'actived' cho Slide dau tien luc ban dau
       let idCur = parseFloat($slider.getAttribute('data-idBegin'), 10) || 0;
@@ -180,7 +197,11 @@
     }    
     // Setup vi tri cua Node theo value
     private SetPostion($node, value) {
+      // Lam tron gia tri 'value' 0.0
+      value = parseFloat(Math.round(value * 10), 10) / 10;
+      // Gia tri transform
       let tf = 'translate3D(XXpx, 0, 0)'.replace(/XX/i, value);
+      // Di chuyen toi vi tri $target
       this.Css($node, { transform: tf });
     }
     private AnimateCanvas() {
@@ -198,7 +219,7 @@
           xChange = that.xCanvas - xCanvasLast;
 
       // Loop Step function
-      cancelAnimationFrame(that.request);
+      that.cancelAF(that.request);
       let Step = function() {
         
         // Lay thoi gian hien tai dang Animation
@@ -209,18 +230,31 @@
         let xCur = xCanvasLast + (xChange * that.Easing['easeOutQuad'](null, tCur, 0, 1, duration));
         that.SetPostion(that.$canvas, xCur);
         // Cap nhat vi tri xCanvas
-        // that.xCanvasLast = that.xCanvas;
         that.xCanvas = xCur;
 
         // Loop action  
-        that.request = requestAnimationFrame(Step);
+        that.request = that.requestAF(Step);
 
         // End Loop
         if( tCur >= that.duration ) {
-          cancelAnimationFrame(that.request);
+          that.cancelAF(that.request);
         }
       };
       Step();
+    }
+    private GotoAnimateEnd() {
+      let that = this;
+      let xEnd = that.xMap[that.idCur];
+
+      // Dieu kien tiep tuc tuc hien
+      if( that.xCanvas === xEnd ) return;
+
+      // Dung Request Animation Frame
+      that.cancelAF(that.request);
+      // Di chuyen Canvas toi vi tri Animate-End
+      that.SetPostion(that.$canvas, xEnd);
+      // Luu tru vi tri hien tai
+      that.xCanvas = xEnd;
     }
     private GotoNearSlide() {
       let width = this.width,
@@ -229,22 +263,29 @@
           xCanvasLast = this.xCanvas - xNear,
           isNext = xNear >= 0 ? true : false;
 
+      // Khoang cach toi thieu de di chuyen sang Slide moi
+      let wMinNear = width / 2;
+      // Truong hop thoi gian Swipe ngan(200ms) thi khoang cach ngan hon
+      if( this.tEnd - this.tBegin <= 200 ) wMinNear = width / 8;
+
       // Di chuyen sang Next Slide
-      if( (idCur < this.num - 1) && (xNear > 0) && (xNear >= width / 2) ) {
-        console.log('#1 next slide')
+      if( (idCur < this.num - 1) && (xNear > 0) && (xNear >= wMinNear) ) {
+        console.log('#1 next slide');
         this.goto(idCur + 1, true, true);
       }
 
       // Di chuyen sang Previous Slide
-      else if( (idCur > 0) && (xNear < 0) && (xNear <= - width / 2) ) {
+      else if( (idCur > 0) && (xNear < 0) && (xNear <= -wMinNear) ) {
         console.log('#2 prev slide');
         this.goto(idCur - 1, true, true);
       }
 
       // Phuc hoi lai vi tri cua Slide Cu
       else {
-        console.log('#3 phuc hoi');
-        this.goto(idCur, true, true, xCanvasLast);
+        if( this.xCanvas !== this.xMap[this.idCur] ) {
+          console.log('#3 phuc hoi');
+          this.goto(idCur, true, true, xCanvasLast);
+        }
       }
     }
 
@@ -262,8 +303,8 @@
 
     private GetEventRight(e) {
       let i = e;
-      if( /^touch/.test(e.type) )        i = e.originalEvent.touches[0];
-      else if( /pointer/i.test(e.type) ) i = e.originalEvent;
+      if( /^touch/.test(e.type) )        i = e.changedTouches[0];
+      // else if( /pointer/i.test(e.type) ) i = e.originalEvent;
       return i;
     },
     // Event Tap
@@ -302,18 +343,24 @@
       that.$viewport.addEventListener('dragstart', function(e) { e.returnValue = false });
 
       // Event Mouse Start
-      that.$viewport.addEventListener('mousedown', function(e) {
+      that.$viewport.addEventListener('mousedown', MouseDown);
+      that.$viewport.addEventListener(that.evTouch.start, MouseDown);
 
-        var i = that.GetEventRight(e);
+      // Function MouseDown
+      function MouseDown(e) {
+        // console.log('## mouse down', e.type);
+        let i = that.GetEventRight(e);
         that.pageX0 = i.pageX;
         that.pageXLast = null;
         that.tBegin = +new Date();
 
-        // Event Mouse Move`
+        // Event Mouse Move
         document.addEventListener('mousemove', MouseMove);
-        // Event Mouse End`
+        document.addEventListener(that.evTouch.move, MouseMove, true);
+        // Event Mouse End
         document.addEventListener('mouseup', MouseUp);
-      });
+        document.addEventListener(that.evTouch.end, MouseUp, true);
+      }
 
       // Function MouseMove
       function MouseMove(e) {
@@ -322,6 +369,13 @@
 
         let distance = i.pageX - that.pageXLast;
         that.pageXLast = i.pageX;
+
+        // Di chuyen toi vi tri Animate-End khi chua Animate xong
+        if( !that.isFirstSwipeMove && Math.abs(distance) > 0 ) {
+          that.GotoAnimateEnd();
+          // Update bien de ngan chan thuc hien lan nua trong Even Swipe Move
+          that.isFirstSwipeMove = true;
+        }
 
         // Setup di chuyen giam dan o dau va cuoi Slide
         if(  (that.idCur == 0 && distance > 0)
@@ -332,18 +386,28 @@
         // // console.log(distance);
         that.xCanvas += distance;
         that.SetPostion(that.$canvas, that.xCanvas);
-        // console.log(that.xCanvas);
 
 
 
         // Kiem tra di chuyen sang vi tri Slide ke ben
+        let isNearSlide = false
         if( (that.xCanvas <= that.xMap[that.idCur + 1]) && (that.idCur < that.num-1) ) {
           that.goto(that.idCur + 1, false);
-          that.pageX0 = i.pageX;
+          isNearSlide = true;
         }
         else if( (that.xCanvas >= that.xMap[that.idCur - 1]) && (that.idCur > 0) ) {
           that.goto(that.idCur - 1, false);
+          isNearSlide = true;
+        }
+        if( isNearSlide ) {
           that.pageX0 = i.pageX;
+          that.tBegin = +new Date();
+        }
+
+        // Stop scrollbar khi Touch
+        if( /(touch)|(pointer)/i.test(e.type) ) {
+          // console.log(e.type);
+          // e.preventDefault();
         }
       }
 
@@ -358,7 +422,15 @@
 
         // Loai bo event MouseMove / MouseUp
         document.removeEventListener('mousemove', MouseMove);
+        document.removeEventListener(that.evTouch.move, MouseMove);
         document.removeEventListener('mouseup', MouseUp);
+        document.removeEventListener(that.evTouch.end, MouseUp);
+
+        // Reset cac bien
+        that.isFirstSwipeMove = false;
+        // setTimeout(function() {
+        //   document.removeEventListener('touchmove', function(e) { return false });
+        // }, 100);
       }
     }
 
