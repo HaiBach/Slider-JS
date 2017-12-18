@@ -53,12 +53,10 @@
       // Get options width
       let width = $slider.getAttribute('data-width') || '100%';
       this.width = this.ConvertPercent(width, this.$viewport);
+      this.margin = parseFloat($slider.getAttribute('data-margin')) || 0;
 
       // Mang chua vi tri cac Slides
-      this.xMap = [];
-      for( let i = 0; i < this.num; i++ ) {
-        this.xMap.push(- i * this.width);
-      }
+      this.UpdateXMap();
 
       // Request Animation Frame shortcut
       this.requestAF = window.requestAnimationFrame.bind(window)
@@ -81,7 +79,8 @@
       let idCur = parseFloat($slider.getAttribute('data-idBegin'), 10) || 0;
       this.goto(idCur, false, true);
 
-      // Dat vi tri cua cac Slides luc ban dau
+      // Dat kich thuoc & vi tri cua cac Slides luc ban dau
+      this.SizeSlidesAtBegin();
       this.PositionSlidesAtBegin();
 
       // Add Event Tap
@@ -130,6 +129,8 @@
     private AddClass($nodes, strClass) {
       let arrClass = strClass.split(' ');
 
+      // Dieu kien thuc hien tiep
+      if( $nodes === undefined ) return;
       // Convert one node to array
       if( !!$nodes.nodeType ) $nodes = [$nodes];
 
@@ -148,6 +149,8 @@
     private RemoveClass($nodes, strClass) {
       let arrClass = strClass.split(' ');
 
+      // Dieu kien thuc hien tiep
+      if( $nodes === undefined ) return;
       // Convert one node to array
       if( !!$nodes.nodeType ) $nodes = [$nodes];
 
@@ -188,13 +191,43 @@
 
 
 
-    private PositionSlidesAtBegin() {
+    private UpdateXMap() {
+      let width = this.width;
+
+      let xMap = [], margin;
+      for( let i = 0; i < this.num; i++ ) {
+        // Setup margin
+        margin = (i == 0) ? 0 : this.margin;
+        // Update vi tri vao mang[]
+        xMap.push( -(i * this.width + margin) );
+      }
+      this.xMap = xMap;
+
+      // let wCanvas = this.$canvas.offsetWidth;
+      // let nCanvas = 0;
+      // while(nCanvas * wCanvas < (width + margin) * this.num) {
+      //   nCanvas++;
+      // }
+      // // Tim vi tri lon nhat can di chuyen toi
+      // let xMax = -(nCanvas - 1) * wCanvas;
+    }
+    private SizeSlidesAtBegin() {
       for( let i = 0, len = this.$slides.length; i < len; i++ ) {
         
         // Set vi tri cua slide hien tai
-        this.SetPostion(this.$slides[i], this.width * i);
+        this.Css(this.$slides[i], { width: this.width + 'px' });
       }
-    }    
+    }
+    private PositionSlidesAtBegin() {
+      for( let i = 0, len = this.$slides.length; i < len; i++ ) {
+
+        // Setup margin
+        let margin = (i == 0) ? 0 : this.margin;
+
+        // Set vi tri cua slide hien tai
+        this.SetPostion(this.$slides[i], (this.width + margin) * i);
+      }
+    }
     // Setup vi tri cua Node theo value
     private SetPostion($node, value) {
       // Lam tron gia tri 'value' 0.0
@@ -270,20 +303,20 @@
 
       // Di chuyen sang Next Slide
       if( (idCur < this.num - 1) && (xNear > 0) && (xNear >= wMinNear) ) {
-        console.log('#1 next slide');
+        // console.log('#1 next slide');
         this.goto(idCur + 1, true, true);
       }
 
       // Di chuyen sang Previous Slide
       else if( (idCur > 0) && (xNear < 0) && (xNear <= -wMinNear) ) {
-        console.log('#2 prev slide');
+        // console.log('#2 prev slide');
         this.goto(idCur - 1, true, true);
       }
 
       // Phuc hoi lai vi tri cua Slide Cu
       else {
         if( this.xCanvas !== this.xMap[this.idCur] ) {
-          console.log('#3 phuc hoi');
+          // console.log('#3 phuc hoi');
           this.goto(idCur, true, true, xCanvasLast);
         }
       }
@@ -348,7 +381,6 @@
 
       // Function MouseDown
       function MouseDown(e) {
-        // console.log('## mouse down', e.type);
         let i = that.GetEventRight(e);
         that.pageX0 = i.pageX;
         that.pageXLast = null;
@@ -383,7 +415,6 @@
         {
           distance /= 4;
         }
-        // // console.log(distance);
         that.xCanvas += distance;
         that.SetPostion(that.$canvas, that.xCanvas);
 
@@ -405,10 +436,7 @@
         }
 
         // Stop scrollbar khi Touch
-        if( /(touch)|(pointer)/i.test(e.type) ) {
-          // console.log(e.type);
-          // e.preventDefault();
-        }
+        if( /(touch)|(pointer)/i.test(e.type) ) {}
       }
 
       // Function MouseUp
@@ -462,10 +490,8 @@
       this.AddClass(this.$pagItems[idNext], actived);
 
       // Cap nhat vi tri cua Canvas
-      // console.log('#4', this.xCanvasLast, this.xCanvas);
       this.xCanvasLast = this.xCanvas;
       this.xCanvas = this.xMap[idNext];
-      // console.log('#5', this.xCanvasLast, this.xCanvas);
 
       if( isAnimate ) {
         this.AnimateCanvas();
