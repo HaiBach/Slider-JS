@@ -27,6 +27,7 @@
     constructor($slider) {
 
       // Variable Initial
+      this.$slider = $slider;
       this.$viewport = $slider.querySelector('.sliderjs-viewport');
       this.$canvas = $slider.querySelector('.sliderjs-canvas');
       this.$prev = $slider.querySelector('.sliderjs-prev') || document.createElement('div');
@@ -35,6 +36,7 @@
       this.xCanvas = this.xCanvasLast = 0;
       this.isAnimate = false;
       this.duration = $slider.getAttribute('data-duration') || 400;
+      this.isCenter = ($slider.getAttribute('data-isCenter') == 'true') ? true : false;
 
       // Dieu kien tiep tuc thuc hien
       if( !(this.$viewport.nodeType && this.$canvas.nodeType) ) return false;
@@ -52,6 +54,7 @@
 
       // Get options width
       let width = $slider.getAttribute('data-width') || '100%';
+      this.wViewport = this.$viewport.offsetWidth;
       this.width = this.ConvertPercent(width, this.$viewport);
       this.margin = parseFloat($slider.getAttribute('data-margin')) || 0;
 
@@ -83,9 +86,10 @@
       this.SizeSlidesAtBegin();
       this.PositionSlidesAtBegin();
 
-      // Add Event Tap
+      // Add Event cho cac doi tuong
       this.EventTap();
       this.EventSwipe();
+      this.EventResize();
     }
 
     private ConvertNode($nodes) {
@@ -192,24 +196,50 @@
 
 
     private UpdateXMap() {
-      let width = this.width;
+      let width = this.width,
+          margin = this.margin,
+          wViewport = this.$viewport.offsetWidth,
+          xMap = [],
+          xMaxNormal = -((width + margin) * (this.num - 1)),
+          xMax;
 
-      let xMap = [], margin;
-      for( let i = 0; i < this.num; i++ ) {
-        // Setup margin
-        margin = (i == 0) ? 0 : this.margin;
-        // Update vi tri vao mang[]
-        xMap.push( -(i * this.width + margin) );
+      /**
+       * CASE: SLIDER CENTER
+       */
+      if( this.isCenter ) {
+        // Khoang cach giua Slide center voi Viewport
+        let padding = Math.round((wViewport - width ) / 2);
+        xMaxNormal += padding;
+
+        // Cap nhat vi tri cua Slide vao mang[]
+        for( let i = 0; i < this.num; i++ ) {
+          // Update vi tri vao mang[]
+          let xCur = -((width + margin) * i) + padding;
+          xMap.push(xCur);
+        }
+        this.xMap = xMap;
       }
-      this.xMap = xMap;
 
-      // let wCanvas = this.$canvas.offsetWidth;
-      // let nCanvas = 0;
-      // while(nCanvas * wCanvas < (width + margin) * this.num) {
-      //   nCanvas++;
-      // }
-      // // Tim vi tri lon nhat can di chuyen toi
-      // let xMax = -(nCanvas - 1) * wCanvas;
+
+      /**
+       * CASE: SLIDER NORMAL
+       */
+      else {
+        // Tim vi tri xMax khi widthSlide < widthViewport
+        if( width < wViewport ) {
+          xMax = xMaxNormal + (wViewport - width);
+        }
+
+        // Cap nhat vi tri cua Slide vao mang[]
+        for( let i = 0; i < this.num; i++ ) {
+          // Update vi tri vao mang[]
+          let xCur = -((width + margin) * i);
+          // Co gia tri khong duoc lon hon xMax
+          if( xCur < xMax ) xCur = xMax;
+          xMap.push(xCur);
+        }
+        this.xMap = xMap;
+      }
     }
     private SizeSlidesAtBegin() {
       for( let i = 0, len = this.$slides.length; i < len; i++ ) {
@@ -299,7 +329,7 @@
       // Khoang cach toi thieu de di chuyen sang Slide moi
       let wMinNear = width / 2;
       // Truong hop thoi gian Swipe ngan(200ms) thi khoang cach ngan hon
-      if( this.tEnd - this.tBegin <= 200 ) wMinNear = width / 8;
+      if( this.tEnd - this.tBegin <= 200 ) wMinNear = width / 16;
 
       // Di chuyen sang Next Slide
       if( (idCur < this.num - 1) && (xNear > 0) && (xNear >= wMinNear) ) {
@@ -381,6 +411,7 @@
 
       // Function MouseDown
       function MouseDown(e) {
+        // console.log('# mousedown', that.$slider);
         let i = that.GetEventRight(e);
         that.pageX0 = i.pageX;
         that.pageXLast = null;
@@ -388,10 +419,10 @@
 
         // Event Mouse Move
         document.addEventListener('mousemove', MouseMove);
-        document.addEventListener(that.evTouch.move, MouseMove, true);
+        document.addEventListener(that.evTouch.move, MouseMove);
         // Event Mouse End
         document.addEventListener('mouseup', MouseUp);
-        document.addEventListener(that.evTouch.end, MouseUp, true);
+        document.addEventListener(that.evTouch.end, MouseUp);
       }
 
       // Function MouseMove
@@ -456,10 +487,12 @@
 
         // Reset cac bien
         that.isFirstSwipeMove = false;
-        // setTimeout(function() {
-        //   document.removeEventListener('touchmove', function(e) { return false });
-        // }, 100);
       }
+    }
+    // Event Resize
+    private EventResize() {
+      let resize = this.resize.bind(this);
+      window.addEventListener('resize', resize);
     }
 
 
@@ -509,6 +542,27 @@
     }
     public prev() {
       this.goto(this.idCur - 1, true);
+    }
+    public resize() {
+      let that = this;
+      
+      // Tao timer de tiet kiem CPU
+      clearTimeout(that.tResize);
+      that.tResize = setTimeout(function() {
+
+        // Dieu kien thuc hien
+        let wViewportCur = that.$viewport.offsetWidth;
+        if( that.wViewport === wViewportCur ) return;
+        
+        // Cap nhat cac gia tri cua bien
+        that.wViewport = wViewportCur;
+        let width = that.$slider.getAttribute('data-width') || '100%';
+        that.width = that.ConvertPercent(width, that.$viewport);
+        that.UpdateXMap();
+
+        // Di chuyen toi vi tri Slide hien tai
+        that.goto(that.idCur, false, true);
+      }, 100);
     }
 
 
