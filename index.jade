@@ -7,17 +7,27 @@ html(lang="en")
     link(rel="stylesheet", href="css/bootstrap-grid.css")
     link(rel="stylesheet", href="css/slider-js.css")
 
+    style(rel="stylesheet").
+      .scrollbox {
+        visibility: hidden;
+        overflow-y: scroll;
+        height: 200px;
+        padding: 20px;
+        border: 4px solid red;
+        column-count: 5;
+      }
+
   body
     .container
       .row
         .col
           h1 TEST SLIDER-JS
           - var n = 0;
-          while n < 4
+          while n < 6
             - n++;
             p Lorem ipsum dolor sit amet, consectetur adipisicing elit. Neque magnam perferendis minima magni porro ratione pariatur quam id, odio quidem, nam non architecto laboriosam. Ab optio corporis quas saepe delectus.
           
-          div.sliderjs(data-width="690", data-idBegin="0" data-duration="400")
+          div.sliderjs(data-width="100%", data-idBegin="0" data-duration="400")
             .sliderjs-viewport
               ul.sliderjs-canvas
                 li
@@ -41,6 +51,12 @@ html(lang="en")
             ul.sliderjs-nav
               li.sliderjs-prev Previous
               li.sliderjs-next Next
+
+          .scrollbox
+            -var n = 0;
+            while n < 4
+              - n++;
+              p Lorem ipsum dolor sit amet, consectetur adipisicing elit. Quis omnis officia dicta distinctio nihil dolorum illum, odio perspiciatis sapiente provident placeat magni iure voluptas repellat doloremque inventore tenetur eum eaque.
 
           - var n = 0;
           while n < 4

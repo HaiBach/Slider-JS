@@ -85,6 +85,7 @@
       // Dat kich thuoc & vi tri cua cac Slides luc ban dau
       this.SizeSlidesAtBegin();
       this.PositionSlidesAtBegin();
+      // this.CreateOverlay();
 
       // Add Event cho cac doi tuong
       this.EventTap();
@@ -361,6 +362,34 @@
 
 
 
+    private CreateOverlay() {
+      this.$overlay = document.createElement('div');
+      // Them class vao doi tuong
+      this.$overlay.setAttribute('class', 'sliderjs-overlay sliderjs-actived');
+      document.body.appendChild(this.$overlay);
+
+      this.$overlay.addEventListener('touchmove', function(e) {
+        e.preventDefault();
+      }, false);
+      // document.body.addEventListener('touchmove', this.StopScroll, false);
+    }
+    private RemoveOverlay() {
+      document.body.removeChild(this.$overlay);
+      // document.body.removeEventListener('touchmove', this.StopScroll, false);
+    }
+    private StopScroll(e) {
+      e.preventDefault();
+    }
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -419,10 +448,12 @@
 
         // Event Mouse Move
         document.addEventListener('mousemove', MouseMove);
-        document.addEventListener(that.evTouch.move, MouseMove);
+        document.addEventListener(that.evTouch.move, MouseMove, false);
         // Event Mouse End
         document.addEventListener('mouseup', MouseUp);
         document.addEventListener(that.evTouch.end, MouseUp);
+        // document.addEventListener('touchmove', StopScroll, true);
+        // that.CreateOverlay();
       }
 
       // Function MouseMove
@@ -438,6 +469,17 @@
           that.GotoAnimateEnd();
           // Update bien de ngan chan thuc hien lan nua trong Even Swipe Move
           that.isFirstSwipeMove = true;
+
+          that.n = (that.n === undefined) ? 0 : that.n + 1;
+          // if( that.n % 2 === 0 ) {
+          //   console.log("# so chan");
+          //   e.preventDefault();
+          // }
+          // else {
+          //   console.log("# so le");
+          //   return true;
+          // }
+          // document.addEventListener('touchmove', StopScroll, true);  
         }
 
         // Setup di chuyen giam dan o dau va cuoi Slide
@@ -467,7 +509,7 @@
         }
 
         // Stop scrollbar khi Touch
-        if( /(touch)|(pointer)/i.test(e.type) ) {}
+        // if( /(touch)|(pointer)/i.test(e.type) ) {}
       }
 
       // Function MouseUp
@@ -479,7 +521,7 @@
         // Thuc hien pageX1 - Di chuyen toi Slide ke ben
         that.GotoNearSlide();
 
-        // Loai bo event MouseMove / MouseUp
+        // Loai bo event MouseMove / MouseUp 
         document.removeEventListener('mousemove', MouseMove);
         document.removeEventListener(that.evTouch.move, MouseMove);
         document.removeEventListener('mouseup', MouseUp);
@@ -487,6 +529,17 @@
 
         // Reset cac bien
         that.isFirstSwipeMove = false;
+        // setTimeout(function() {
+        //   document.removeEventListener('touchmove', StopScroll);
+        // }, 400);
+        // document.removeEventListener('touchmove', StopScroll, true);
+        // that.RemoveOverlay();
+        that.RemoveClass(document.body, that.actived);
+      }
+
+      function StopScroll(e) {
+        console.log('# stopscroll');
+        e.preventDefault();
       }
     }
     // Event Resize

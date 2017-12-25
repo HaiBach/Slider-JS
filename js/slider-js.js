@@ -39,6 +39,7 @@
                 }
             };
             // Variable Initial
+            this.$slider = $slider;
             this.$viewport = $slider.querySelector('.sliderjs-viewport');
             this.$canvas = $slider.querySelector('.sliderjs-canvas');
             this.$prev = $slider.querySelector('.sliderjs-prev') || document.createElement('div');
@@ -47,6 +48,7 @@
             this.xCanvas = this.xCanvasLast = 0;
             this.isAnimate = false;
             this.duration = $slider.getAttribute('data-duration') || 400;
+            this.isCenter = ($slider.getAttribute('data-isCenter') == 'true') ? true : false;
             // Dieu kien tiep tuc thuc hien
             if (!(this.$viewport.nodeType && this.$canvas.nodeType))
                 return false;
@@ -62,12 +64,11 @@
             this.$pagItems = this.ConvertNode($pagItems);
             // Get options width
             var width = $slider.getAttribute('data-width') || '100%';
+            this.wViewport = this.$viewport.offsetWidth;
             this.width = this.ConvertPercent(width, this.$viewport);
+            this.margin = parseFloat($slider.getAttribute('data-margin')) || 0;
             // Mang chua vi tri cac Slides
-            this.xMap = [];
-            for (var i = 0; i < this.num; i++) {
-                this.xMap.push(-i * this.width);
-            }
+            this.UpdateXMap();
             // Request Animation Frame shortcut
             this.requestAF = window.requestAnimationFrame.bind(window)
                 || function (callback) { return window.setTimeout(callback, 1000 / 60).bind(window); };
@@ -87,11 +88,14 @@
             // Add Class 'actived' cho Slide dau tien luc ban dau
             var idCur = parseFloat($slider.getAttribute('data-idBegin'), 10) || 0;
             this.goto(idCur, false, true);
-            // Dat vi tri cua cac Slides luc ban dau
+            // Dat kich thuoc & vi tri cua cac Slides luc ban dau
+            this.SizeSlidesAtBegin();
             this.PositionSlidesAtBegin();
-            // Add Event Tap
+            // this.CreateOverlay();
+            // Add Event cho cac doi tuong
             this.EventTap();
             this.EventSwipe();
+            this.EventResize();
         }
         SliderJSOne.prototype.ConvertNode = function ($nodes) {
             var $nodesNew = [];
@@ -128,6 +132,9 @@
         };
         SliderJSOne.prototype.AddClass = function ($nodes, strClass) {
             var arrClass = strClass.split(' ');
+            // Dieu kien thuc hien tiep
+            if ($nodes === undefined)
+                return;
             // Convert one node to array
             if (!!$nodes.nodeType)
                 $nodes = [$nodes];
@@ -144,6 +151,9 @@
         };
         SliderJSOne.prototype.RemoveClass = function ($nodes, strClass) {
             var arrClass = strClass.split(' ');
+            // Dieu kien thuc hien tiep
+            if ($nodes === undefined)
+                return;
             // Convert one node to array
             if (!!$nodes.nodeType)
                 $nodes = [$nodes];
@@ -173,10 +183,52 @@
                 }
             }
         };
-        SliderJSOne.prototype.PositionSlidesAtBegin = function () {
+        SliderJSOne.prototype.UpdateXMap = function () {
+            var width = this.width, margin = this.margin, wViewport = this.$viewport.offsetWidth, xMap = [], xMaxNormal = -((width + margin) * (this.num - 1)), xMax;
+            /**
+             * CASE: SLIDER CENTER
+             */
+            if (this.isCenter) {
+                // Khoang cach giua Slide center voi Viewport
+                var padding = Math.round((wViewport - width) / 2);
+                xMaxNormal += padding;
+                // Cap nhat vi tri cua Slide vao mang[]
+                for (var i = 0; i < this.num; i++) {
+                    // Update vi tri vao mang[]
+                    var xCur = -((width + margin) * i) + padding;
+                    xMap.push(xCur);
+                }
+                this.xMap = xMap;
+            }
+            else {
+                // Tim vi tri xMax khi widthSlide < widthViewport
+                if (width < wViewport) {
+                    xMax = xMaxNormal + (wViewport - width);
+                }
+                // Cap nhat vi tri cua Slide vao mang[]
+                for (var i = 0; i < this.num; i++) {
+                    // Update vi tri vao mang[]
+                    var xCur = -((width + margin) * i);
+                    // Co gia tri khong duoc lon hon xMax
+                    if (xCur < xMax)
+                        xCur = xMax;
+                    xMap.push(xCur);
+                }
+                this.xMap = xMap;
+            }
+        };
+        SliderJSOne.prototype.SizeSlidesAtBegin = function () {
             for (var i = 0, len = this.$slides.length; i < len; i++) {
                 // Set vi tri cua slide hien tai
-                this.SetPostion(this.$slides[i], this.width * i);
+                this.Css(this.$slides[i], { width: this.width + 'px' });
+            }
+        };
+        SliderJSOne.prototype.PositionSlidesAtBegin = function () {
+            for (var i = 0, len = this.$slides.length; i < len; i++) {
+                // Setup margin
+                var margin = (i == 0) ? 0 : this.margin;
+                // Set vi tri cua slide hien tai
+                this.SetPostion(this.$slides[i], (this.width + margin) * i);
             }
         };
         // Setup vi tri cua Node theo value
@@ -235,22 +287,39 @@
             var wMinNear = width / 2;
             // Truong hop thoi gian Swipe ngan(200ms) thi khoang cach ngan hon
             if (this.tEnd - this.tBegin <= 200)
-                wMinNear = width / 8;
+                wMinNear = width / 16;
             // Di chuyen sang Next Slide
             if ((idCur < this.num - 1) && (xNear > 0) && (xNear >= wMinNear)) {
-                console.log('#1 next slide');
+                // console.log('#1 next slide');
                 this.goto(idCur + 1, true, true);
             }
             else if ((idCur > 0) && (xNear < 0) && (xNear <= -wMinNear)) {
-                console.log('#2 prev slide');
+                // console.log('#2 prev slide');
                 this.goto(idCur - 1, true, true);
             }
             else {
                 if (this.xCanvas !== this.xMap[this.idCur]) {
-                    console.log('#3 phuc hoi');
+                    // console.log('#3 phuc hoi');
                     this.goto(idCur, true, true, xCanvasLast);
                 }
             }
+        };
+        SliderJSOne.prototype.CreateOverlay = function () {
+            this.$overlay = document.createElement('div');
+            // Them class vao doi tuong
+            this.$overlay.setAttribute('class', 'sliderjs-overlay sliderjs-actived');
+            document.body.appendChild(this.$overlay);
+            this.$overlay.addEventListener('touchmove', function (e) {
+                e.preventDefault();
+            }, false);
+            // document.body.addEventListener('touchmove', this.StopScroll, false);
+        };
+        SliderJSOne.prototype.RemoveOverlay = function () {
+            document.body.removeChild(this.$overlay);
+            // document.body.removeEventListener('touchmove', this.StopScroll, false);
+        };
+        SliderJSOne.prototype.StopScroll = function (e) {
+            e.preventDefault();
         };
         SliderJSOne.prototype.GetEventRight = function (e) {
             var i = e;
@@ -296,17 +365,19 @@
             that.$viewport.addEventListener(that.evTouch.start, MouseDown);
             // Function MouseDown
             function MouseDown(e) {
-                // console.log('## mouse down', e.type);
+                // console.log('# mousedown', that.$slider);
                 var i = that.GetEventRight(e);
                 that.pageX0 = i.pageX;
                 that.pageXLast = null;
                 that.tBegin = +new Date();
                 // Event Mouse Move
                 document.addEventListener('mousemove', MouseMove);
-                document.addEventListener(that.evTouch.move, MouseMove, true);
+                document.addEventListener(that.evTouch.move, MouseMove, false);
                 // Event Mouse End
                 document.addEventListener('mouseup', MouseUp);
-                document.addEventListener(that.evTouch.end, MouseUp, true);
+                document.addEventListener(that.evTouch.end, MouseUp);
+                // document.addEventListener('touchmove', StopScroll, true);
+                // that.CreateOverlay();
             }
             // Function MouseMove
             function MouseMove(e) {
@@ -319,13 +390,22 @@
                     that.GotoAnimateEnd();
                     // Update bien de ngan chan thuc hien lan nua trong Even Swipe Move
                     that.isFirstSwipeMove = true;
+                    that.n = (that.n === undefined) ? 0 : that.n + 1;
+                    // if( that.n % 2 === 0 ) {
+                    //   console.log("# so chan");
+                    //   e.preventDefault();
+                    // }
+                    // else {
+                    //   console.log("# so le");
+                    //   return true;
+                    // }
+                    // document.addEventListener('touchmove', StopScroll, true);  
                 }
                 // Setup di chuyen giam dan o dau va cuoi Slide
                 if ((that.idCur == 0 && distance > 0)
                     || (that.idCur == that.num - 1 && distance < 0)) {
                     distance /= 4;
                 }
-                // // console.log(distance);
                 that.xCanvas += distance;
                 that.SetPostion(that.$canvas, that.xCanvas);
                 // Kiem tra di chuyen sang vi tri Slide ke ben
@@ -343,10 +423,7 @@
                     that.tBegin = +new Date();
                 }
                 // Stop scrollbar khi Touch
-                if (/(touch)|(pointer)/i.test(e.type)) {
-                    // console.log(e.type);
-                    // e.preventDefault();
-                }
+                // if( /(touch)|(pointer)/i.test(e.type) ) {}
             }
             // Function MouseUp
             function MouseUp(e) {
@@ -355,7 +432,7 @@
                 that.tEnd = +new Date();
                 // Thuc hien pageX1 - Di chuyen toi Slide ke ben
                 that.GotoNearSlide();
-                // Loai bo event MouseMove / MouseUp
+                // Loai bo event MouseMove / MouseUp 
                 document.removeEventListener('mousemove', MouseMove);
                 document.removeEventListener(that.evTouch.move, MouseMove);
                 document.removeEventListener('mouseup', MouseUp);
@@ -363,9 +440,21 @@
                 // Reset cac bien
                 that.isFirstSwipeMove = false;
                 // setTimeout(function() {
-                //   document.removeEventListener('touchmove', function(e) { return false });
-                // }, 100);
+                //   document.removeEventListener('touchmove', StopScroll);
+                // }, 400);
+                // document.removeEventListener('touchmove', StopScroll, true);
+                // that.RemoveOverlay();
+                that.RemoveClass(document.body, that.actived);
             }
+            function StopScroll(e) {
+                console.log('# stopscroll');
+                e.preventDefault();
+            }
+        };
+        // Event Resize
+        SliderJSOne.prototype.EventResize = function () {
+            var resize = this.resize.bind(this);
+            window.addEventListener('resize', resize);
         };
         // Action goto Slide
         SliderJSOne.prototype.goto = function (idNext, isAnimate, isForceActive) {
@@ -382,10 +471,8 @@
             this.AddClass(this.$slides[idNext], actived);
             this.AddClass(this.$pagItems[idNext], actived);
             // Cap nhat vi tri cua Canvas
-            // console.log('#4', this.xCanvasLast, this.xCanvas);
             this.xCanvasLast = this.xCanvas;
             this.xCanvas = this.xMap[idNext];
-            // console.log('#5', this.xCanvasLast, this.xCanvas);
             if (isAnimate) {
                 this.AnimateCanvas();
             }
@@ -400,6 +487,24 @@
         };
         SliderJSOne.prototype.prev = function () {
             this.goto(this.idCur - 1, true);
+        };
+        SliderJSOne.prototype.resize = function () {
+            var that = this;
+            // Tao timer de tiet kiem CPU
+            clearTimeout(that.tResize);
+            that.tResize = setTimeout(function () {
+                // Dieu kien thuc hien
+                var wViewportCur = that.$viewport.offsetWidth;
+                if (that.wViewport === wViewportCur)
+                    return;
+                // Cap nhat cac gia tri cua bien
+                that.wViewport = wViewportCur;
+                var width = that.$slider.getAttribute('data-width') || '100%';
+                that.width = that.ConvertPercent(width, that.$viewport);
+                that.UpdateXMap();
+                // Di chuyen toi vi tri Slide hien tai
+                that.goto(that.idCur, false, true);
+            }, 100);
         };
         return SliderJSOne;
     }());
