@@ -78,14 +78,20 @@
       else if( isMSPointer ) this.evTouch = { start: 'mspointerstart', move: 'mspointermove', end: 'mspointerend' };
       else                   this.evTouch = { start: '', move: '', end: '' };
 
+      // Them doi tuong Overlay - tren thiet bi iOS
+      if( /iPhone|iPad|iPod/i.test(navigator.userAgent) && (typeof window.orientation !== 'undefined') ) {
+        this.$overlay = document.createElement('div');
+        this.$overlay.setAttribute('class', 'sliderjs-overlay');
+        this.$viewport.appendChild(this.$overlay);
+      }
+
       // Add Class 'actived' cho Slide dau tien luc ban dau
       let idCur = parseFloat($slider.getAttribute('data-idBegin'), 10) || 0;
       this.goto(idCur, false, true);
 
       // Dat kich thuoc & vi tri cua cac Slides luc ban dau
-      this.SizeSlidesAtBegin();
-      this.PositionSlidesAtBegin();
-      // this.CreateOverlay();
+      this.UpdateSizeOnSlides();
+      this.UpdatePosOnSlides();
 
       // Add Event cho cac doi tuong
       this.EventTap();
@@ -124,9 +130,20 @@
       }
       return $nodesNew.length ? $nodesNew : null;
     }
-    private HasClass($node, strClass) {
-      let classOnNode = $node.getAttribute('class') || '';
-      return (classOnNode.indexOf(strClass) !== -1) ? true : false;
+    private HasClass($nodes, strClass) {
+      // Chi thuc hien voi Node dau tien
+      if( !!$nodes.length ) $nodes = $nodes[0];
+
+      // Bien
+      let aClassOnNode = ($nodes.getAttribute('class') || '').split(' ');
+      let isHas = false;
+
+      for( var key in aClassOnNode ) {
+        if( aClassOnNode[key] === strClass ) {
+          isHas = true;
+        }
+      }
+      return isHas;
     }
     private RemoveWS(str) {
       return str.replace(/(^\s+)|(\s+$)/g, '').replace(/(\s\s+)/g, ' ');
@@ -143,11 +160,20 @@
       for( let i = 0, len = $nodes.length; i < len; i++ ) {
         let $nodeCur = $nodes[i];
         let classOnNode = $nodeCur.getAttribute('class') || '';
+        let aClassOnNode = classOnNode.split(' ');
+        let isAddClass = false;
 
         for( let key in arrClass ) {
-          if( classOnNode.indexOf(arrClass[key]) === -1 ) {
-            $nodeCur.setAttribute('class', this.RemoveWS(classOnNode +' '+ arrClass[key]) );
+          if( aClassOnNode.indexOf(arrClass[key]) === -1 ) {
+            classOnNode += ' ' + arrClass[key];
+            isAddClass = true;
           }
+        }
+
+        // Add class on Node
+        if( isAddClass ) {
+          classOnNode = classOnNode.replace(/(^\s+)|(\s+$)/g, '').replace(/\s\s+/g, ' ');
+          $nodeCur.setAttribute('class', classOnNode);
         }
       }
     }
@@ -163,18 +189,30 @@
       for( let i = 0, len = $nodes.length; i < len; i++ ) {
         let $nodeCur = $nodes[i];
         let classOnNode = $nodeCur.getAttribute('class') || '';
+        let aClassOnNode = classOnNode.split(' ');
+        let isRemoveClass = false;
 
         // Support remove multi class
         for( let key in arrClass ) {
-          if( classOnNode.indexOf(arrClass[key]) !== -1 ) {
-            classOnNode = this.RemoveWS(classOnNode.replace(arrClass[key], ''));
-            classOnNode === '' ? $nodeCur.removeAttribute('class')
-                               : $nodeCur.setAttribute('class', classOnNode);
+          for( let keyA in aClassOnNode ) {
+            if( aClassOnNode[keyA] === arrClass[key] ) {
+              aClassOnNode.splice(keyA, 1);
+              isRemoveClass = true;
+            }
           }
+        }
+
+        // Remove class from Node
+        if( isRemoveClass ) {
+          // Remove whitespce
+          classOnNode = aClassOnNode.join(' ');
+          classOnNode = classOnNode.replace(/(^\s+)|(\s+$)/g, '').replace(/\s\s+/g, ' ');
+          classOnNode === '' ? $nodeCur.removeAttribute('class')
+                             : $nodeCur.setAttribute('class', classOnNode);
         }
       }
     }
-    private Css($nodes, styles) {
+    private CSS($nodes, styles) {
       // Convert to Array
       if( !!$nodes.nodeType ) $nodes = [$nodes];
 
@@ -242,14 +280,14 @@
         this.xMap = xMap;
       }
     }
-    private SizeSlidesAtBegin() {
+    private UpdateSizeOnSlides() {
       for( let i = 0, len = this.$slides.length; i < len; i++ ) {
         
         // Set vi tri cua slide hien tai
-        this.Css(this.$slides[i], { width: this.width + 'px' });
+        this.CSS(this.$slides[i], { width: this.width + 'px' });
       }
     }
-    private PositionSlidesAtBegin() {
+    private UpdatePosOnSlides() {
       for( let i = 0, len = this.$slides.length; i < len; i++ ) {
 
         // Setup margin
@@ -264,9 +302,9 @@
       // Lam tron gia tri 'value' 0.0
       value = parseFloat(Math.round(value * 10), 10) / 10;
       // Gia tri transform
-      let tf = 'translate3D(XXpx, 0, 0)'.replace(/XX/i, value);
+      let tf = 'translate3D(XXXpx, 0, 0)'.replace(/XXX/i, value);
       // Di chuyen toi vi tri $target
-      this.Css($node, { transform: tf });
+      this.CSS($node, { transform: tf });
     }
     private AnimateCanvas() {
       // Request Animation Frame
@@ -362,34 +400,6 @@
 
 
 
-    private CreateOverlay() {
-      this.$overlay = document.createElement('div');
-      // Them class vao doi tuong
-      this.$overlay.setAttribute('class', 'sliderjs-overlay sliderjs-actived');
-      document.body.appendChild(this.$overlay);
-
-      this.$overlay.addEventListener('touchmove', function(e) {
-        e.preventDefault();
-      }, false);
-      // document.body.addEventListener('touchmove', this.StopScroll, false);
-    }
-    private RemoveOverlay() {
-      document.body.removeChild(this.$overlay);
-      // document.body.removeEventListener('touchmove', this.StopScroll, false);
-    }
-    private StopScroll(e) {
-      e.preventDefault();
-    }
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -448,12 +458,10 @@
 
         // Event Mouse Move
         document.addEventListener('mousemove', MouseMove);
-        document.addEventListener(that.evTouch.move, MouseMove, false);
+        document.addEventListener(that.evTouch.move, MouseMove);
         // Event Mouse End
         document.addEventListener('mouseup', MouseUp);
         document.addEventListener(that.evTouch.end, MouseUp);
-        // document.addEventListener('touchmove', StopScroll, true);
-        // that.CreateOverlay();
       }
 
       // Function MouseMove
@@ -467,19 +475,20 @@
         // Di chuyen toi vi tri Animate-End khi chua Animate xong
         if( !that.isFirstSwipeMove && Math.abs(distance) > 0 ) {
           that.GotoAnimateEnd();
+
+          // Stop scrollbar khi Touch
+          if( /(touch)|(pointer)/i.test(e.type) ) {
+            
+            // Setup Slider nhan biet dang touchmove
+            that.AddClass(document.body, that.actived);
+            that.AddClass(that.$slider, that.actived);
+
+            // Setup vi tri scroll chi giu
+            !!that.$overlay && that.$overlay.scrollTo(100000/2, 0);
+          }
+
           // Update bien de ngan chan thuc hien lan nua trong Even Swipe Move
           that.isFirstSwipeMove = true;
-
-          that.n = (that.n === undefined) ? 0 : that.n + 1;
-          // if( that.n % 2 === 0 ) {
-          //   console.log("# so chan");
-          //   e.preventDefault();
-          // }
-          // else {
-          //   console.log("# so le");
-          //   return true;
-          // }
-          // document.addEventListener('touchmove', StopScroll, true);  
         }
 
         // Setup di chuyen giam dan o dau va cuoi Slide
@@ -507,9 +516,6 @@
           that.pageX0 = i.pageX;
           that.tBegin = +new Date();
         }
-
-        // Stop scrollbar khi Touch
-        // if( /(touch)|(pointer)/i.test(e.type) ) {}
       }
 
       // Function MouseUp
@@ -521,25 +527,20 @@
         // Thuc hien pageX1 - Di chuyen toi Slide ke ben
         that.GotoNearSlide();
 
-        // Loai bo event MouseMove / MouseUp 
+        // Loai bo event MouseMove / MouseUp
         document.removeEventListener('mousemove', MouseMove);
         document.removeEventListener(that.evTouch.move, MouseMove);
         document.removeEventListener('mouseup', MouseUp);
         document.removeEventListener(that.evTouch.end, MouseUp);
 
+        // Loai bo Stop Scroll
+        if( /(touch)|(pointer)/i.test(e.type) ) {
+          that.RemoveClass(document.body, that.actived);
+          that.RemoveClass(that.$slider, that.actived);
+        }
+
         // Reset cac bien
         that.isFirstSwipeMove = false;
-        // setTimeout(function() {
-        //   document.removeEventListener('touchmove', StopScroll);
-        // }, 400);
-        // document.removeEventListener('touchmove', StopScroll, true);
-        // that.RemoveOverlay();
-        that.RemoveClass(document.body, that.actived);
-      }
-
-      function StopScroll(e) {
-        console.log('# stopscroll');
-        e.preventDefault();
       }
     }
     // Event Resize
@@ -612,6 +613,8 @@
         let width = that.$slider.getAttribute('data-width') || '100%';
         that.width = that.ConvertPercent(width, that.$viewport);
         that.UpdateXMap();
+        that.UpdatePosOnSlides();
+        that.UpdateSizeOnSlides();
 
         // Di chuyen toi vi tri Slide hien tai
         that.goto(that.idCur, false, true);
