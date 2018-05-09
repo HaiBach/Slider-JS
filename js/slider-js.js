@@ -49,6 +49,7 @@
             this.isAnimate = false;
             this.duration = $slider.getAttribute('data-duration') || 400;
             this.isCenter = ($slider.getAttribute('data-isCenter') == 'true') ? true : false;
+            this.delay = parseFloat($slider.getAttribute('data-delay')) || false;
             // Dieu kien tiep tuc thuc hien
             if (!(this.$viewport.nodeType && this.$canvas.nodeType))
                 return false;
@@ -74,7 +75,9 @@
                 || function (callback) { return window.setTimeout(callback, 1000 / 60).bind(window); };
             this.cancelAF = window.cancelAnimationFrame.bind(window) || window.clearTimeout.bind(window);
             // Ten event touch tuy theo browser ho tro
-            var isPointer = !!window.PointerEvent, isMSPointer = !!window.MSPointerEvent, isTouch = !!window.TouchEvent
+            var isPointer = !!window.PointerEvent;
+            var isMSPointer = !!window.MSPointerEvent;
+            var isTouch = !!window.TouchEvent
                 || 'ontouchstart' in window
                 || (window.DocumentTouch && document instanceof DocumentTouch);
             if (isTouch)
@@ -85,13 +88,20 @@
                 this.evTouch = { start: 'mspointerstart', move: 'mspointermove', end: 'mspointerend' };
             else
                 this.evTouch = { start: '', move: '', end: '' };
+            // Them doi tuong Overlay - tren thiet bi iOS
+            if (/iPhone|iPad|iPod/i.test(navigator.userAgent) && (typeof window.orientation !== 'undefined')) {
+                this.$overlay = document.createElement('div');
+                this.$overlay.setAttribute('class', 'sliderjs-overlay');
+                this.$viewport.appendChild(this.$overlay);
+            }
             // Add Class 'actived' cho Slide dau tien luc ban dau
             var idCur = parseFloat($slider.getAttribute('data-idBegin'), 10) || 0;
             this.goto(idCur, false, true);
             // Dat kich thuoc & vi tri cua cac Slides luc ban dau
-            this.SizeSlidesAtBegin();
-            this.PositionSlidesAtBegin();
-            // this.CreateOverlay();
+            this.UpdateSizeOnSlides();
+            this.UpdatePosOnSlides();
+            // Setup Slideshow
+            this.Slideshow();
             // Add Event cho cac doi tuong
             this.EventTap();
             this.EventSwipe();
@@ -123,9 +133,19 @@
             }
             return $nodesNew.length ? $nodesNew : null;
         };
-        SliderJSOne.prototype.HasClass = function ($node, strClass) {
-            var classOnNode = $node.getAttribute('class') || '';
-            return (classOnNode.indexOf(strClass) !== -1) ? true : false;
+        SliderJSOne.prototype.HasClass = function ($nodes, strClass) {
+            // Chi thuc hien voi Node dau tien
+            if (!!$nodes.length)
+                $nodes = $nodes[0];
+            // Bien
+            var aClassOnNode = ($nodes.getAttribute('class') || '').split(' ');
+            var isHas = false;
+            for (var key in aClassOnNode) {
+                if (aClassOnNode[key] === strClass) {
+                    isHas = true;
+                }
+            }
+            return isHas;
         };
         SliderJSOne.prototype.RemoveWS = function (str) {
             return str.replace(/(^\s+)|(\s+$)/g, '').replace(/(\s\s+)/g, ' ');
@@ -142,10 +162,18 @@
             for (var i = 0, len = $nodes.length; i < len; i++) {
                 var $nodeCur = $nodes[i];
                 var classOnNode = $nodeCur.getAttribute('class') || '';
+                var aClassOnNode = classOnNode.split(' ');
+                var isAddClass = false;
                 for (var key in arrClass) {
-                    if (classOnNode.indexOf(arrClass[key]) === -1) {
-                        $nodeCur.setAttribute('class', this.RemoveWS(classOnNode + ' ' + arrClass[key]));
+                    if (aClassOnNode.indexOf(arrClass[key]) === -1) {
+                        classOnNode += ' ' + arrClass[key];
+                        isAddClass = true;
                     }
+                }
+                // Add class on Node
+                if (isAddClass) {
+                    classOnNode = classOnNode.replace(/(^\s+)|(\s+$)/g, '').replace(/\s\s+/g, ' ');
+                    $nodeCur.setAttribute('class', classOnNode);
                 }
             }
         };
@@ -161,17 +189,28 @@
             for (var i = 0, len = $nodes.length; i < len; i++) {
                 var $nodeCur = $nodes[i];
                 var classOnNode = $nodeCur.getAttribute('class') || '';
+                var aClassOnNode = classOnNode.split(' ');
+                var isRemoveClass = false;
                 // Support remove multi class
                 for (var key in arrClass) {
-                    if (classOnNode.indexOf(arrClass[key]) !== -1) {
-                        classOnNode = this.RemoveWS(classOnNode.replace(arrClass[key], ''));
-                        classOnNode === '' ? $nodeCur.removeAttribute('class')
-                            : $nodeCur.setAttribute('class', classOnNode);
+                    for (var keyA in aClassOnNode) {
+                        if (aClassOnNode[keyA] === arrClass[key]) {
+                            aClassOnNode.splice(keyA, 1);
+                            isRemoveClass = true;
+                        }
                     }
+                }
+                // Remove class from Node
+                if (isRemoveClass) {
+                    // Remove whitespce
+                    classOnNode = aClassOnNode.join(' ');
+                    classOnNode = classOnNode.replace(/(^\s+)|(\s+$)/g, '').replace(/\s\s+/g, ' ');
+                    classOnNode === '' ? $nodeCur.removeAttribute('class')
+                        : $nodeCur.setAttribute('class', classOnNode);
                 }
             }
         };
-        SliderJSOne.prototype.Css = function ($nodes, styles) {
+        SliderJSOne.prototype.CSS = function ($nodes, styles) {
             // Convert to Array
             if (!!$nodes.nodeType)
                 $nodes = [$nodes];
@@ -217,13 +256,13 @@
                 this.xMap = xMap;
             }
         };
-        SliderJSOne.prototype.SizeSlidesAtBegin = function () {
+        SliderJSOne.prototype.UpdateSizeOnSlides = function () {
             for (var i = 0, len = this.$slides.length; i < len; i++) {
                 // Set vi tri cua slide hien tai
-                this.Css(this.$slides[i], { width: this.width + 'px' });
+                this.CSS(this.$slides[i], { width: this.width + 'px' });
             }
         };
-        SliderJSOne.prototype.PositionSlidesAtBegin = function () {
+        SliderJSOne.prototype.UpdatePosOnSlides = function () {
             for (var i = 0, len = this.$slides.length; i < len; i++) {
                 // Setup margin
                 var margin = (i == 0) ? 0 : this.margin;
@@ -236,9 +275,9 @@
             // Lam tron gia tri 'value' 0.0
             value = parseFloat(Math.round(value * 10), 10) / 10;
             // Gia tri transform
-            var tf = 'translate3D(XXpx, 0, 0)'.replace(/XX/i, value);
+            var tf = 'translate3D(XXXpx, 0, 0)'.replace(/XXX/i, value);
             // Di chuyen toi vi tri $target
-            this.Css($node, { transform: tf });
+            this.CSS($node, { transform: tf });
         };
         SliderJSOne.prototype.AnimateCanvas = function () {
             // Request Animation Frame
@@ -259,7 +298,7 @@
                 that.SetPostion(that.$canvas, xCur);
                 // Cap nhat vi tri xCanvas
                 that.xCanvas = xCur;
-                // Loop action  
+                // Loop action
                 that.request = that.requestAF(Step);
                 // End Loop
                 if (tCur >= that.duration) {
@@ -282,7 +321,11 @@
             that.xCanvas = xEnd;
         };
         SliderJSOne.prototype.GotoNearSlide = function () {
-            var width = this.width, idCur = this.idCur, xNear = this.pageX0 - this.pageX1, xCanvasLast = this.xCanvas - xNear, isNext = xNear >= 0 ? true : false;
+            var width = this.width;
+            var idCur = this.idCur;
+            var xNear = this.pageX0 - this.pageX1;
+            var xCanvasLast = this.xCanvas - xNear;
+            var isNext = xNear >= 0 ? true : false;
             // Khoang cach toi thieu de di chuyen sang Slide moi
             var wMinNear = width / 2;
             // Truong hop thoi gian Swipe ngan(200ms) thi khoang cach ngan hon
@@ -304,23 +347,28 @@
                 }
             }
         };
-        SliderJSOne.prototype.CreateOverlay = function () {
-            this.$overlay = document.createElement('div');
-            // Them class vao doi tuong
-            this.$overlay.setAttribute('class', 'sliderjs-overlay sliderjs-actived');
-            document.body.appendChild(this.$overlay);
-            this.$overlay.addEventListener('touchmove', function (e) {
-                e.preventDefault();
-            }, false);
-            // document.body.addEventListener('touchmove', this.StopScroll, false);
+        /**
+         * SLIDESHOW
+         */
+        SliderJSOne.prototype.Slideshow = function () {
+            var that = this;
+            if (this.delay === false)
+                return;
+            // Setup timer cho Slideshow
+            clearInterval(this.timerSlideshow);
+            this.timerSlideshow = setInterval(function () {
+                // Truong hop: slide cuoi cung -> di chuyen toi slide dau tien
+                if (that.idCur >= that.num - 1) {
+                    that.goto(0, true);
+                }
+                else {
+                    that.next();
+                }
+            }, this.delay);
         };
-        SliderJSOne.prototype.RemoveOverlay = function () {
-            document.body.removeChild(this.$overlay);
-            // document.body.removeEventListener('touchmove', this.StopScroll, false);
-        };
-        SliderJSOne.prototype.StopScroll = function (e) {
-            e.preventDefault();
-        };
+        /**
+         * EVENT
+         */
         SliderJSOne.prototype.GetEventRight = function (e) {
             var i = e;
             if (/^touch/.test(e.type))
@@ -372,12 +420,10 @@
                 that.tBegin = +new Date();
                 // Event Mouse Move
                 document.addEventListener('mousemove', MouseMove);
-                document.addEventListener(that.evTouch.move, MouseMove, false);
+                document.addEventListener(that.evTouch.move, MouseMove);
                 // Event Mouse End
                 document.addEventListener('mouseup', MouseUp);
                 document.addEventListener(that.evTouch.end, MouseUp);
-                // document.addEventListener('touchmove', StopScroll, true);
-                // that.CreateOverlay();
             }
             // Function MouseMove
             function MouseMove(e) {
@@ -388,18 +434,16 @@
                 // Di chuyen toi vi tri Animate-End khi chua Animate xong
                 if (!that.isFirstSwipeMove && Math.abs(distance) > 0) {
                     that.GotoAnimateEnd();
+                    // Stop scrollbar khi Touch
+                    if (/(touch)|(pointer)/i.test(e.type)) {
+                        // Setup Slider nhan biet dang touchmove
+                        that.AddClass(document.body, that.actived);
+                        that.AddClass(that.$slider, that.actived);
+                        // Setup vi tri scroll chi giu
+                        !!that.$overlay && that.$overlay.scrollTo(100000 / 2, 0);
+                    }
                     // Update bien de ngan chan thuc hien lan nua trong Even Swipe Move
                     that.isFirstSwipeMove = true;
-                    that.n = (that.n === undefined) ? 0 : that.n + 1;
-                    // if( that.n % 2 === 0 ) {
-                    //   console.log("# so chan");
-                    //   e.preventDefault();
-                    // }
-                    // else {
-                    //   console.log("# so le");
-                    //   return true;
-                    // }
-                    // document.addEventListener('touchmove', StopScroll, true);  
                 }
                 // Setup di chuyen giam dan o dau va cuoi Slide
                 if ((that.idCur == 0 && distance > 0)
@@ -422,8 +466,6 @@
                     that.pageX0 = i.pageX;
                     that.tBegin = +new Date();
                 }
-                // Stop scrollbar khi Touch
-                // if( /(touch)|(pointer)/i.test(e.type) ) {}
             }
             // Function MouseUp
             function MouseUp(e) {
@@ -432,23 +474,18 @@
                 that.tEnd = +new Date();
                 // Thuc hien pageX1 - Di chuyen toi Slide ke ben
                 that.GotoNearSlide();
-                // Loai bo event MouseMove / MouseUp 
+                // Loai bo event MouseMove / MouseUp
                 document.removeEventListener('mousemove', MouseMove);
                 document.removeEventListener(that.evTouch.move, MouseMove);
                 document.removeEventListener('mouseup', MouseUp);
                 document.removeEventListener(that.evTouch.end, MouseUp);
+                // Loai bo Stop Scroll
+                if (/(touch)|(pointer)/i.test(e.type)) {
+                    that.RemoveClass(document.body, that.actived);
+                    that.RemoveClass(that.$slider, that.actived);
+                }
                 // Reset cac bien
                 that.isFirstSwipeMove = false;
-                // setTimeout(function() {
-                //   document.removeEventListener('touchmove', StopScroll);
-                // }, 400);
-                // document.removeEventListener('touchmove', StopScroll, true);
-                // that.RemoveOverlay();
-                that.RemoveClass(document.body, that.actived);
-            }
-            function StopScroll(e) {
-                console.log('# stopscroll');
-                e.preventDefault();
             }
         };
         // Event Resize
@@ -458,9 +495,10 @@
         };
         // Action goto Slide
         SliderJSOne.prototype.goto = function (idNext, isAnimate, isForceActive) {
-            var actived = this.actived, 
+            var actived = this.actived;
             // Lenh if ho tro. setup actived Slide voi ID !== 0
-            idCur = this.idCur !== undefined ? this.idCur : 0, nSlide = idNext - idCur;
+            var idCur = this.idCur !== undefined ? this.idCur : 0;
+            var nSlide = idNext - idCur;
             // Dieu kien thuc hien
             if (!((0 <= idNext && idNext <= this.num - 1 && idNext !== idCur) || isForceActive))
                 return;
@@ -502,8 +540,12 @@
                 var width = that.$slider.getAttribute('data-width') || '100%';
                 that.width = that.ConvertPercent(width, that.$viewport);
                 that.UpdateXMap();
+                that.UpdatePosOnSlides();
+                that.UpdateSizeOnSlides();
                 // Di chuyen toi vi tri Slide hien tai
                 that.goto(that.idCur, false, true);
+                // Reset lai Slidehosw
+                that.Slideshow();
             }, 100);
         };
         return SliderJSOne;

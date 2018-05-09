@@ -8,7 +8,7 @@
    * CLASS SLIDER JS
    */
   class SliderJS {
-    constructor(selector) {
+    constructor(selector: string) {
       var $sliders = document.querySelectorAll(selector);
       for( let i = 0, len = $sliders.length; i < len; i++ ) {
         new SliderJSOne($sliders[i]);
@@ -37,6 +37,7 @@
       this.isAnimate = false;
       this.duration = $slider.getAttribute('data-duration') || 400;
       this.isCenter = ($slider.getAttribute('data-isCenter') == 'true') ? true : false;
+      this.delay = parseFloat($slider.getAttribute('data-delay')) || false;
 
       // Dieu kien tiep tuc thuc hien
       if( !(this.$viewport.nodeType && this.$canvas.nodeType) ) return false;
@@ -67,12 +68,12 @@
       this.cancelAF = window.cancelAnimationFrame.bind(window) || window.clearTimeout.bind(window);
 
       // Ten event touch tuy theo browser ho tro
-      let isPointer = !!window.PointerEvent,
-          isMSPointer = !!window.MSPointerEvent,
-          isTouch = !!window.TouchEvent
+      let isPointer = !!window.PointerEvent;
+      let isMSPointer = !!window.MSPointerEvent;
+      let isTouch = !!window.TouchEvent
                   || 'ontouchstart' in window
                   || (window.DocumentTouch && document instanceof DocumentTouch);
-      
+
       if( isTouch )          this.evTouch = { start: 'touchstart', move: 'touchmove', end: 'touchend' };
       else if( isPointer )   this.evTouch = { start: 'pointerstart', move: 'pointermove', end: 'pointerend' };
       else if( isMSPointer ) this.evTouch = { start: 'mspointerstart', move: 'mspointermove', end: 'mspointerend' };
@@ -92,6 +93,9 @@
       // Dat kich thuoc & vi tri cua cac Slides luc ban dau
       this.UpdateSizeOnSlides();
       this.UpdatePosOnSlides();
+
+      // Setup Slideshow
+      this.Slideshow();
 
       // Add Event cho cac doi tuong
       this.EventTap();
@@ -123,7 +127,7 @@
       let $nodesNew = [];
       for( let i = 0, len = $nodes.length; i < len; i++ ) {
         let $nodesQuery = $nodes[i].querySelectorAll(selector);
-        
+
         for( let j = 0, lenJ = $nodesQuery.length; j < lenJ; j++ ) {
           $nodesNew.push($nodesQuery[j]);
         }
@@ -282,7 +286,7 @@
     }
     private UpdateSizeOnSlides() {
       for( let i = 0, len = this.$slides.length; i < len; i++ ) {
-        
+
         // Set vi tri cua slide hien tai
         this.CSS(this.$slides[i], { width: this.width + 'px' });
       }
@@ -323,7 +327,7 @@
       // Loop Step function
       that.cancelAF(that.request);
       let Step = function() {
-        
+
         // Lay thoi gian hien tai dang Animation
         let tCur = +new Date() - tBegin;
         if( tCur > duration ) tCur = duration;
@@ -334,7 +338,7 @@
         // Cap nhat vi tri xCanvas
         that.xCanvas = xCur;
 
-        // Loop action  
+        // Loop action
         that.request = that.requestAF(Step);
 
         // End Loop
@@ -359,11 +363,11 @@
       that.xCanvas = xEnd;
     }
     private GotoNearSlide() {
-      let width = this.width,
-          idCur = this.idCur,
-          xNear = this.pageX0 - this.pageX1,
-          xCanvasLast = this.xCanvas - xNear,
-          isNext = xNear >= 0 ? true : false;
+      let width = this.width;
+      let idCur = this.idCur;
+      let xNear = this.pageX0 - this.pageX1;
+      let xCanvasLast = this.xCanvas - xNear;
+      let isNext = xNear >= 0 ? true : false;
 
       // Khoang cach toi thieu de di chuyen sang Slide moi
       let wMinNear = width / 2;
@@ -400,15 +404,46 @@
 
 
 
+    /**
+     * SLIDESHOW
+     */
+    private Slideshow() {
+      let that = this;
+      if( this.delay === false ) return;
+
+      // Setup timer cho Slideshow
+      clearInterval(this.timerSlideshow);
+      this.timerSlideshow = setInterval(function() {
+        // Truong hop: slide cuoi cung -> di chuyen toi slide dau tien
+        if( that.idCur >= that.num - 1 ) {
+          that.goto(0, true);
+        }
+        // Truong hop: Binh thuong
+        else {
+          that.next();
+        }
+      }, this.delay);
+    }
 
 
 
+
+
+
+
+
+
+
+    /**
+     * EVENT
+     */
     private GetEventRight(e) {
       let i = e;
-      if( /^touch/.test(e.type) )        i = e.changedTouches[0];
+      if( /^touch/.test(e.type) ) i = e.changedTouches[0];
       // else if( /pointer/i.test(e.type) ) i = e.originalEvent;
       return i;
-    },
+    }
+
     // Event Tap
     private EventTap() {
       let that = this;
@@ -437,6 +472,7 @@
         });
       }
     }
+
     // Event Swipe
     private EventSwipe() {
       let that = this;
@@ -478,7 +514,7 @@
 
           // Stop scrollbar khi Touch
           if( /(touch)|(pointer)/i.test(e.type) ) {
-            
+
             // Setup Slider nhan biet dang touchmove
             that.AddClass(document.body, that.actived);
             that.AddClass(that.$slider, that.actived);
@@ -543,6 +579,7 @@
         that.isFirstSwipeMove = false;
       }
     }
+
     // Event Resize
     private EventResize() {
       let resize = this.resize.bind(this);
@@ -561,10 +598,10 @@
     // Action goto Slide
     public goto(idNext, isAnimate, isForceActive) {
 
-      let actived = this.actived,
-          // Lenh if ho tro. setup actived Slide voi ID !== 0
-          idCur  = this.idCur !== undefined ? this.idCur : 0,
-          nSlide = idNext - idCur;
+      let actived = this.actived;
+      // Lenh if ho tro. setup actived Slide voi ID !== 0
+      let idCur  = this.idCur !== undefined ? this.idCur : 0;
+      let nSlide = idNext - idCur;
 
       // Dieu kien thuc hien
       if( !((0 <= idNext && idNext <= this.num - 1 && idNext !== idCur) || isForceActive) ) return;
@@ -586,7 +623,7 @@
       else {
         this.SetPostion(this.$canvas, this.xCanvas);
       }
-      
+
 
       // Cap nhat bien
       this.idCur = idNext;
@@ -599,7 +636,7 @@
     }
     public resize() {
       let that = this;
-      
+
       // Tao timer de tiet kiem CPU
       clearTimeout(that.tResize);
       that.tResize = setTimeout(function() {
@@ -607,7 +644,7 @@
         // Dieu kien thuc hien
         let wViewportCur = that.$viewport.offsetWidth;
         if( that.wViewport === wViewportCur ) return;
-        
+
         // Cap nhat cac gia tri cua bien
         that.wViewport = wViewportCur;
         let width = that.$slider.getAttribute('data-width') || '100%';
@@ -618,6 +655,9 @@
 
         // Di chuyen toi vi tri Slide hien tai
         that.goto(that.idCur, false, true);
+
+        // Reset lai Slidehosw
+        that.Slideshow();
       }, 100);
     }
 
